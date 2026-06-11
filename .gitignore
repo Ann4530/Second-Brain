@@ -1,0 +1,32 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+*.g.dart
+*.freezed.dart
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Platform folders are committed (android/ holds our MainActivity MethodChannel).
+# Standard generated/native build artifacts:
+**/android/.gradle/
+**/android/app/build/
+**/android/local.properties
+ios/Pods/
+ios/.symlinks/
+
+# Firebase / secrets
+firebase_options.dart
+google-services.json
+GoogleService-Info.plist
+functions/node_modules/
+functions/.env
+.firebase/
+*.keystore
+key.properties
