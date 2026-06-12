@@ -272,7 +272,7 @@ class _ChatView extends ConsumerWidget {
         Expanded(
           child: ListView.builder(
             controller: scrollCtrl,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
             itemCount: conv.messages.length + (conv.isTyping ? 1 : 0),
             itemBuilder: (ctx, i) {
               if (i == conv.messages.length) {
@@ -284,16 +284,17 @@ class _ChatView extends ConsumerWidget {
           ),
         ),
 
-        // ── "Kết thúc" button (visible after first user message) ──
+        // ── Compact "Kết thúc" pill (after first user message) ──
         if (hasUser)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Kết thúc & Phân tích'),
-                onPressed: conv.isTyping ? null : onEnd,
+            padding: const EdgeInsets.only(bottom: 2),
+            child: FilledButton.tonalIcon(
+              icon: const Icon(Icons.auto_awesome, size: 18),
+              label: const Text('Kết thúc & Phân tích'),
+              onPressed: conv.isTyping ? null : onEnd,
+              style: FilledButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                shape: const StadiumBorder(),
               ),
             ),
           ),
@@ -319,30 +320,49 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final isUser = message.isUser;
 
-    return Align(
-      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
+    final bubble = Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.72,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isUser ? cs.primary : cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(20),
+          topRight: const Radius.circular(20),
+          bottomLeft: Radius.circular(isUser ? 20 : 6),
+          bottomRight: Radius.circular(isUser ? 6 : 20),
         ),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: message.isUser ? cs.primary : cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(message.isUser ? 18 : 4),
-            bottomRight: Radius.circular(message.isUser ? 4 : 18),
-          ),
+      ),
+      child: Text(
+        message.text,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: isUser ? cs.onPrimary : cs.onSurface,
+          height: 1.35,
         ),
-        child: Text(
-          message.text,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: message.isUser ? cs.onPrimary : cs.onSurface,
-          ),
-        ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment:
+            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isUser) ...[
+            CircleAvatar(
+              radius: 14,
+              backgroundColor: cs.primaryContainer,
+              child: Icon(Icons.auto_awesome,
+                  size: 15, color: cs.onPrimaryContainer),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(child: bubble),
+        ],
       ),
     );
   }

@@ -40,7 +40,7 @@ export default {
         {
           role: 'system',
           content: isChat
-            ? 'You are a warm, curious journaling companion. Ask ONE thoughtful follow-up question per turn. Keep it short and empathetic.'
+            ? 'You are a warm journaling companion, like a close friend texting. Ask ONE short follow-up question per turn — ONE sentence, max ~15 words. Do not echo back what they said. Reply in the same language the user wrote in.'
             : 'You return ONLY a single valid JSON object. No prose, no code fences. Reply in the same language the user wrote in.',
         },
         { role: 'user', content: prompt },
