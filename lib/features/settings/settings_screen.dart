@@ -192,9 +192,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ? null
                   : Icon(signedIn ? Icons.person : Icons.person_outline),
             ),
-            title: Text(signedIn
-                ? (accountName ?? 'Google account')
-                : 'Not signed in'),
+            title: Text(signedIn ? accountName : 'Not signed in'),
             subtitle: Text(signedIn
                 ? (accountEmail ?? 'Synced to your Google account')
                 : 'Anonymous — data lives only on this phone. Sign in to '

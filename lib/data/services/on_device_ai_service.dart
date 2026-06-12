@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 
 import '../../core/env/app_config.dart';
+import '../models/chat_message.dart';
 import '../models/reflection.dart';
 import 'ai_service.dart';
 
@@ -28,22 +29,16 @@ class _TierModel {
   final ModelType modelType;
 }
 
-// Qwen2.5 — strong small multilingual (good Vietnamese), downloads WITHOUT a
-// Hugging Face token. IMPORTANT: use the `.task` (MediaPipe) format — it loads
-// via getActiveModel/EngineFactory. `.litertlm` files need a different FFI path
-// and throw "should be handled by Dart FFI" with this API.
+// Gemma 3 1B IT — good Vietnamese, ~600MB, runs on 4GB+ RAM devices.
+// Downloads WITHOUT a Hugging Face token. Use .task (MediaPipe) format.
 const _models = <ModelTier, _TierModel>{
   ModelTier.small: _TierModel(
-    // Qwen2.5 0.5B (q8 .task) — ~0.5GB, fast, universal floor.
-    'https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task',
-    ModelType.qwen,
+    'https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q8_ekv1280.task',
+    ModelType.gemmaIt,
   ),
-  // For now large tier uses the same 0.5B .task (fast download, proven path).
-  // To upgrade quality on 6GB+ devices, switch to Qwen2.5-1.5B (.task, ~1.6GB):
-  // '.../Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task'
   ModelTier.large: _TierModel(
-    'https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task',
-    ModelType.qwen,
+    'https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q8_ekv1280.task',
+    ModelType.gemmaIt,
   ),
 };
 
@@ -97,9 +92,9 @@ class OnDeviceAiService implements AiService {
     _model = await FlutterGemma.getActiveModel(
       // ekv1280 build → match the model's cache size to avoid the OpenCL warning.
       maxTokens: 1280,
-      // CPU backend: the Qwen .task models use INT64 CAST ops that crash the
-      // GPU/OpenCL executor on many mobile GPUs (e.g. Mali). CPU is slower but
-      // runs everywhere. A 0.5B model is fast enough on a modern SoC.
+      // CPU backend: safest across all devices; GPU may be faster but less
+      // stable on some Mali/Adreno chips. Switch to PreferredBackend.gpu
+      // only after testing on target hardware.
       preferredBackend: PreferredBackend.cpu,
     );
   }
@@ -134,8 +129,7 @@ class OnDeviceAiService implements AiService {
     );
   }
 
-  /// Run one generation on-device. A fresh chat per request keeps outputs
-  /// independent (no cross-entry context bleed).
+  /// Generate a JSON response (reflection / weekly narrative).
   Future<String> _generate(String prompt) async {
     await ensureModel();
     final chat = await _model!.createChat(
@@ -145,6 +139,23 @@ class OnDeviceAiService implements AiService {
     await chat.addQueryChunk(Message.text(text: prompt, isUser: true));
     final response = await chat.generateChatResponse();
     return response.toString();
+  }
+
+  /// Generate a natural-text response (conversation mode).
+  Future<String> _generateText(String prompt) async {
+    await ensureModel();
+    final chat = await _model!.createChat(
+      systemInstruction: AiPrompts.conversationPersona,
+    );
+    await chat.addQueryChunk(Message.text(text: prompt, isUser: true));
+    final response = await chat.generateChatResponse();
+    return response.toString().trim();
+  }
+
+  @override
+  Future<String> chat(List<ChatMessage> history, {String? language}) async {
+    final prompt = AiPrompts.chatInstruction(history, language: language);
+    return _generateText(prompt);
   }
 
   /// Release the model (e.g. on low-memory warnings).

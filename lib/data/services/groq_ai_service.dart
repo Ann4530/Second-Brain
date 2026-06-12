@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/env/app_config.dart';
+import '../models/chat_message.dart';
 import '../models/reflection.dart';
 import 'ai_service.dart';
 import 'on_device_ai_service.dart' show OnDeviceAiService;
@@ -21,21 +22,21 @@ class GroqAiService implements AiService {
 
   static const _endpoint = 'https://api.groq.com/openai/v1/chat/completions';
 
-  Future<String> _chat(String prompt) async {
+  // ── JSON mode (reflect / weeklyNarrative) ────────────────────────────────
+
+  Future<String> _callJson(String prompt) async {
     if (!AppConfig.cloudConfigured) {
       throw const GroqUnavailable('Cloud engine not configured.');
     }
-    // Decode bytes as UTF-8 explicitly so Vietnamese diacritics are correct.
-    return AppConfig.useProxy ? _viaProxy(prompt) : _direct(prompt);
+    return AppConfig.useProxy ? _viaProxy(prompt) : _directJson(prompt);
   }
 
-  /// Production path: POST { prompt } to the Cloudflare Worker, which holds the
-  /// Groq key. Returns { content }.
-  Future<String> _viaProxy(String prompt) async {
+  /// Proxy path: POST { prompt, mode } → Worker adds key → returns { content }.
+  Future<String> _viaProxy(String prompt, {String mode = 'json'}) async {
     final res = await _client.post(
       Uri.parse(AppConfig.groqProxyUrl),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'prompt': prompt}),
+      body: jsonEncode({'prompt': prompt, 'mode': mode}),
     );
     if (res.statusCode != 200) {
       throw GroqUnavailable('Proxy HTTP ${res.statusCode}: ${res.body}');
@@ -44,8 +45,7 @@ class GroqAiService implements AiService {
     return (data['content'] ?? '').toString();
   }
 
-  /// Interim/test path: call Groq directly with a build-time key.
-  Future<String> _direct(String prompt) async {
+  Future<String> _directJson(String prompt) async {
     final res = await _client.post(
       Uri.parse(_endpoint),
       headers: {
@@ -79,9 +79,53 @@ class GroqAiService implements AiService {
     return ((choices.first as Map)['message']['content'] ?? '').toString();
   }
 
+  // ── Text mode (conversation chat) ────────────────────────────────────────
+
+  Future<String> _callText(List<ChatMessage> history, String? language) async {
+    if (!AppConfig.cloudConfigured) {
+      throw const GroqUnavailable('Cloud engine not configured.');
+    }
+    final prompt = AiPrompts.chatInstruction(history, language: language);
+    return AppConfig.useProxy
+        ? _viaProxy(prompt, mode: 'chat')
+        : _directText(prompt);
+  }
+
+  Future<String> _directText(String prompt) async {
+    final res = await _client.post(
+      Uri.parse(_endpoint),
+      headers: {
+        'Authorization': 'Bearer ${AppConfig.groqApiKey}',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'model': AppConfig.groqModel,
+        'messages': [
+          {'role': 'system', 'content': AiPrompts.conversationPersona},
+          {'role': 'user', 'content': prompt},
+        ],
+        'temperature': 0.8,
+        'max_tokens': 200,
+      }),
+    );
+    if (res.statusCode != 200) {
+      throw GroqUnavailable('Groq HTTP ${res.statusCode}: ${res.body}');
+    }
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final choices = data['choices'] as List?;
+    if (choices == null || choices.isEmpty) {
+      throw const GroqUnavailable('Groq returned no choices.');
+    }
+    return ((choices.first as Map)['message']['content'] ?? '').toString().trim();
+  }
+
+  @override
+  Future<String> chat(List<ChatMessage> history, {String? language}) =>
+      _callText(history, language);
+
   @override
   Future<Reflection> reflect(String entryText, {String? language}) async {
-    final raw = await _chat(
+    final raw = await _callJson(
       AiPrompts.reflectInstruction(entryText, language: language),
     );
     final json = OnDeviceAiService.extractJson(raw);
@@ -97,7 +141,7 @@ class GroqAiService implements AiService {
     required List<String> snippets,
     String? language,
   }) async {
-    final raw = await _chat(
+    final raw = await _callJson(
       AiPrompts.weeklyInstruction(stats, snippets, language: language),
     );
     final json = OnDeviceAiService.extractJson(raw);

@@ -1,3 +1,4 @@
+import '../models/chat_message.dart';
 import '../models/reflection.dart';
 
 /// Shared interface implemented by both the on-device engine and the cloud
@@ -5,6 +6,10 @@ import '../models/reflection.dart';
 abstract interface class AiService {
   /// Produce a reflection + nudge + structured metadata for one entry.
   Future<Reflection> reflect(String entryText, {String? language});
+
+  /// Return the AI's next conversational reply (plain text, not JSON) given
+  /// the conversation history so far.
+  Future<String> chat(List<ChatMessage> history, {String? language});
 
   /// Write the AI narrative for a weekly recap given precomputed stats and a
   /// few short entry snippets. Returns (headline, narrative).
@@ -15,8 +20,7 @@ abstract interface class AiService {
   });
 }
 
-/// Shared prompt fragments. The persona is the stable prefix (good for caching
-/// on cloud; consistent tone on device). Keep it warm but never clinical.
+/// Shared prompt fragments.
 class AiPrompts {
   AiPrompts._();
 
@@ -28,6 +32,46 @@ Given a short journal entry, you:
 2) Offer ONE small, concrete, doable nudge for tomorrow.
 You are NOT a therapist; never diagnose. Be kind, honest, and concise.
 ''';
+
+  static const String conversationPersona = '''
+You are a warm, curious journaling companion inside a private app.
+Your role: have a brief, meaningful conversation to help the person reflect on their day.
+- Ask ONE thoughtful follow-up question per turn. Keep it short (1-2 sentences max).
+- Be empathetic, specific, and genuine. Mirror what they share.
+- Never diagnose. Never lecture.
+''';
+
+  /// Opening message shown to the user before any AI call (no API needed).
+  static String openingQuestion(String? language) {
+    if (language == 'English') return 'How\'s your day going? 😊';
+    return 'Hôm nay của bạn như thế nào? 😊';
+  }
+
+  /// Prompt for a conversation turn — AI returns plain text (not JSON).
+  static String chatInstruction(
+    List<ChatMessage> history, {
+    String? language,
+  }) {
+    final historyText = history
+        .map((m) => '${m.isUser ? "User" : "AI"}: ${m.text}')
+        .join('\n');
+    return '''
+$conversationPersona
+${language != null ? 'Respond in: $language.\n' : ''}
+Conversation so far:
+$historyText
+
+Continue the conversation. Ask one thoughtful follow-up question.
+Return ONLY the reply text — no JSON, no quotes, no labels.
+''';
+  }
+
+  /// Format a conversation history as a single entry text for reflect().
+  static String conversationToEntryText(List<ChatMessage> history) {
+    return history
+        .map((m) => '${m.isUser ? "Tôi" : "AI"}: ${m.text}')
+        .join('\n');
+  }
 
   static String reflectInstruction(String entry, {String? language}) => '''
 $persona

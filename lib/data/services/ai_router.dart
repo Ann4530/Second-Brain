@@ -1,4 +1,5 @@
 import '../../core/env/app_config.dart';
+import '../models/chat_message.dart';
 import '../models/reflection.dart';
 import 'ai_service.dart';
 import 'groq_ai_service.dart';
@@ -30,6 +31,25 @@ class AiRouter implements AiService {
   /// Cloud is preferred (better quality, esp. Vietnamese) when a Groq key is
   /// configured and the user hasn't forced on-device-only.
   bool get _preferCloud => AppConfig.cloudConfigured && !privacyModeOnly;
+
+  /// Conversation turn: prefer cloud, fall back to on-device silently.
+  @override
+  Future<String> chat(List<ChatMessage> history, {String? language}) async {
+    if (_preferCloud) {
+      try {
+        return await _cloud.chat(history, language: language);
+      } on GroqUnavailable {
+        if (await _onDevice.canRunOnDevice) {
+          return _onDevice.chat(history, language: language);
+        }
+        rethrow;
+      }
+    }
+    if (await _onDevice.canRunOnDevice) {
+      return _onDevice.chat(history, language: language);
+    }
+    return _cloud.chat(history, language: language);
+  }
 
   /// Daily reflection.
   /// - Cloud configured + not privacy mode → cloud (Llama 70B) first, with

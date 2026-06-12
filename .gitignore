@@ -33,3 +33,6 @@ key.properties
 
 # Cloudflare Wrangler cache
 cloudflare-worker/.wrangler/
+
+# Built APKs (too large for git)
+*.apk

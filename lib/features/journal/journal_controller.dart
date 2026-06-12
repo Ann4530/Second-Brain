@@ -4,10 +4,12 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/env/app_config.dart';
+import '../../data/models/chat_message.dart';
 import '../../data/models/entry.dart';
 import '../../data/repositories/entry_repository.dart';
 import '../../data/services/ai_service.dart';
 import '../../shared/providers/app_providers.dart';
+import '../../shared/providers/settings_providers.dart';
 
 String todayLocalDate() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
@@ -17,7 +19,78 @@ final todaysEntryProvider = FutureProvider<Entry?>((ref) async {
   return repo.entryForLocalDate(todayLocalDate());
 });
 
-/// Drives the daily loop: enforce the free cap → call AI → save the entry.
+// ─── Conversation state ───────────────────────────────────────────────────────
+
+class ConvState {
+  final List<ChatMessage> messages;
+  final bool isTyping;
+
+  const ConvState({required this.messages, this.isTyping = false});
+
+  ConvState copyWith({List<ChatMessage>? messages, bool? isTyping}) => ConvState(
+        messages: messages ?? this.messages,
+        isTyping: isTyping ?? this.isTyping,
+      );
+}
+
+final conversationProvider =
+    StateNotifierProvider<ConversationNotifier, ConvState>((ref) {
+  return ConversationNotifier(
+    ai: ref.watch(aiServiceProvider),
+    language: ref.watch(reflectionLanguageProvider),
+  );
+});
+
+class ConversationNotifier extends StateNotifier<ConvState> {
+  ConversationNotifier({required AiService ai, required String? language})
+      : _ai = ai,
+        _language = language,
+        super(const ConvState(messages: []));
+
+  final AiService _ai;
+  final String? _language;
+
+  /// Start a new conversation — show the hardcoded opening question instantly.
+  void start() {
+    state = ConvState(messages: [
+      ChatMessage(
+        isUser: false,
+        text: AiPrompts.openingQuestion(_language),
+      ),
+    ]);
+  }
+
+  void reset() => state = const ConvState(messages: []);
+
+  bool get hasUserMessage => state.messages.any((m) => m.isUser);
+
+  /// Send a user message and get the AI follow-up.
+  Future<void> send(String text) async {
+    if (text.trim().isEmpty) return;
+
+    // Add user message immediately.
+    final withUser = state.messages + [ChatMessage(isUser: true, text: text.trim())];
+    state = ConvState(messages: withUser, isTyping: true);
+
+    try {
+      final reply = await _ai.chat(withUser, language: _language);
+      state = ConvState(
+        messages: withUser + [ChatMessage(isUser: false, text: reply)],
+      );
+    } catch (_) {
+      // On error, keep conversation going without AI reply.
+      state = ConvState(messages: withUser);
+    }
+  }
+
+  /// Format the conversation as a text block for reflect().
+  String get transcript =>
+      AiPrompts.conversationToEntryText(state.messages);
+}
+
+// ─── Journal save controller ──────────────────────────────────────────────────
+
+/// Drives the save step: call AI reflect() on conversation transcript → save entry.
 final journalControllerProvider =
     StateNotifierProvider<JournalController, AsyncValue<Entry?>>((ref) {
   return JournalController(
@@ -26,7 +99,7 @@ final journalControllerProvider =
     isPremium: ref.watch(isPremiumProvider),
     onSaved: () {
       ref.invalidate(todaysEntryProvider);
-      ref.invalidate(allEntriesProvider); // refresh History / Insights / streak
+      ref.invalidate(allEntriesProvider);
     },
   );
 });
@@ -48,14 +121,13 @@ class JournalController extends StateNotifier<AsyncValue<Entry?>> {
   final bool _isPremium;
   final VoidCallback _onSaved;
 
-  /// Submit the day's text. Returns the saved Entry (with reflection + nudge).
+  /// Submit the conversation transcript (or a plain entry text) for reflection.
   Future<void> submit(String text, {String? language}) async {
     if (text.trim().isEmpty) return;
     state = const AsyncValue.loading();
     try {
       final date = todayLocalDate();
 
-      // Free-tier daily cap. 0 = unlimited (we don't gate the core action).
       if (!_isPremium && AppConfig.freeReflectionsPerDay > 0) {
         final count = await _repo.countForLocalDate(date);
         if (count >= AppConfig.freeReflectionsPerDay) {
