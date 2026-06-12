@@ -99,6 +99,7 @@ class RecapService {
     required List<Entry> entries,
     required DateTime periodStart,
     required DateTime periodEnd,
+    String? language,
   }) async {
     final stats = computeStats(entries);
     final snippets = entries
@@ -108,7 +109,11 @@ class RecapService {
             : e.reflection)
         .toList();
 
-    final n = await _ai.weeklyNarrative(stats: stats, snippets: snippets);
+    final n = await _ai.weeklyNarrative(
+      stats: stats,
+      snippets: snippets,
+      language: language,
+    );
 
     return WeeklyRecap(
       id: id,

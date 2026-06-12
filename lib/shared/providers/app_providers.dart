@@ -7,6 +7,7 @@ import '../../data/models/entry.dart';
 import '../../data/repositories/entry_repository.dart';
 import '../../data/services/ai_router.dart';
 import '../../data/services/ai_service.dart';
+import '../../data/services/auth_service.dart';
 import '../../data/services/crypto_service.dart';
 import '../../data/services/groq_ai_service.dart';
 import '../../data/services/on_device_ai_service.dart';
@@ -16,14 +17,19 @@ import '../../data/services/on_device_ai_service.dart';
 /// app runs end-to-end in dev without a Firebase project.
 final firebaseReadyProvider = Provider<bool>((ref) => Firebase.apps.isNotEmpty);
 
-/// Anonymous-first auth: sign in silently so entries can sync; upgrade to
-/// Google later from Settings without losing data (linkWithCredential).
-final authUserProvider = FutureProvider<User?>((ref) async {
-  if (!ref.watch(firebaseReadyProvider)) return null;
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+
+/// Reactive auth: emits the current user and updates on sign-in, sign-out AND
+/// when an anonymous user LINKS a Google credential (userChanges fires for link
+/// / profile updates; authStateChanges would NOT, since the uid is unchanged).
+/// Signs in anonymously if there's no user yet.
+final authUserProvider = StreamProvider<User?>((ref) {
+  if (!ref.watch(firebaseReadyProvider)) return Stream.value(null);
   final auth = FirebaseAuth.instance;
-  if (auth.currentUser != null) return auth.currentUser;
-  final cred = await auth.signInAnonymously();
-  return cred.user;
+  if (auth.currentUser == null) {
+    auth.signInAnonymously(); // fire-and-forget; the stream emits on completion
+  }
+  return auth.userChanges();
 });
 
 /// "On-device only" privacy toggle (persist to settings later).

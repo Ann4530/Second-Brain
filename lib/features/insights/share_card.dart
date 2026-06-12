@@ -59,14 +59,19 @@ class ShareCard extends StatelessWidget {
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
+              runSpacing: 6,
               children: [
                 for (final t in topTopics.take(3))
-                  Chip(
-                    label: Text(t,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(t,
                         style: const TextStyle(
                             color: Colors.white, fontSize: 12)),
-                    backgroundColor: Colors.white12,
-                    side: BorderSide.none,
                   ),
               ],
             ),
@@ -107,11 +112,15 @@ class _Stat extends StatelessWidget {
 Future<void> shareRecapCard(WeeklyRecap recap, int streak) async {
   final controller = ScreenshotController();
   final Uint8List png = await controller.captureFromWidget(
-    MediaQuery(
-      data: const MediaQueryData(),
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: ShareCard(recap: recap, streak: streak),
+    Directionality(
+      textDirection: TextDirection.ltr,
+      child: MediaQuery(
+        data: const MediaQueryData(),
+        // Material ancestor so any Material widgets render correctly off-screen.
+        child: Material(
+          type: MaterialType.transparency,
+          child: ShareCard(recap: recap, streak: streak),
+        ),
       ),
     ),
     pixelRatio: 3,

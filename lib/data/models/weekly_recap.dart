@@ -31,6 +31,16 @@ class WeeklyRecap {
 
   final AiSource source;
 
+  WeeklyRecap copyWith({String? headline, String? narrative}) => WeeklyRecap(
+        id: id,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        narrative: narrative ?? this.narrative,
+        headline: headline ?? this.headline,
+        stats: stats,
+        source: source,
+      );
+
   factory WeeklyRecap.fromJson(String id, Map<String, dynamic> json) =>
       WeeklyRecap(
         id: id,

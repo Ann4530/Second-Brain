@@ -1,0 +1,6 @@
+name = "second-brain-groq"
+main = "worker.js"
+compatibility_date = "2026-06-01"
+
+# GROQ_API_KEY is set as a secret (not here):
+#   wrangler secret put GROQ_API_KEY

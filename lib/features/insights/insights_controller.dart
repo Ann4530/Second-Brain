@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../data/models/weekly_recap.dart';
 import '../../data/services/recap_service.dart';
 import '../../shared/providers/app_providers.dart';
+import '../../shared/providers/settings_providers.dart';
 
 final recapServiceProvider = Provider<RecapService>(
   (ref) => RecapService(ai: ref.watch(aiServiceProvider)),
@@ -28,6 +29,7 @@ final weeklyRecapProvider = FutureProvider<WeeklyRecap?>((ref) async {
     entries: entries,
     periodStart: start,
     periodEnd: now,
+    language: ref.watch(reflectionLanguageProvider),
   );
 });
 

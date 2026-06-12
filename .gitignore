@@ -30,3 +30,6 @@ functions/.env
 .firebase/
 *.keystore
 key.properties
+
+# Cloudflare Wrangler cache
+cloudflare-worker/.wrangler/

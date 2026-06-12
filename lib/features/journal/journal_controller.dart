@@ -55,8 +55,8 @@ class JournalController extends StateNotifier<AsyncValue<Entry?>> {
     try {
       final date = todayLocalDate();
 
-      // Free-tier daily cap (also enforced server-side in production).
-      if (!_isPremium) {
+      // Free-tier daily cap. 0 = unlimited (we don't gate the core action).
+      if (!_isPremium && AppConfig.freeReflectionsPerDay > 0) {
         final count = await _repo.countForLocalDate(date);
         if (count >= AppConfig.freeReflectionsPerDay) {
           state = AsyncValue.error(const DailyLimitReached(), StackTrace.current);

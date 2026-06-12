@@ -45,8 +45,12 @@ dependencies:
   share_plus: ^10.0.0
   screenshot: ^3.0.0
 
+  # Networking (direct Groq cloud calls — interim, move behind a proxy later)
+  http: ^1.2.0
+
   # Storage / crypto / misc
   flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.2.0 # language choice + simple settings
   cryptography: ^2.7.0 # AES-GCM for entry text at rest
   intl: ^0.19.0
   uuid: ^4.4.2

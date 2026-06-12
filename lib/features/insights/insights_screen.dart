@@ -49,14 +49,79 @@ class InsightsScreen extends ConsumerWidget {
   }
 }
 
-class _RecapView extends StatelessWidget {
+class _RecapView extends StatefulWidget {
   const _RecapView({required this.recap, required this.streak});
   final WeeklyRecap recap;
   final int streak;
 
   @override
+  State<_RecapView> createState() => _RecapViewState();
+}
+
+class _RecapViewState extends State<_RecapView> {
+  String? _headline; // user edits (override the AI text)
+  String? _narrative;
+
+  /// The recap with the user's edits applied (used for display AND sharing).
+  WeeklyRecap get _effective =>
+      widget.recap.copyWith(headline: _headline, narrative: _narrative);
+
+  Future<void> _edit() async {
+    final current = _effective;
+    final hCtrl = TextEditingController(text: current.headline);
+    final nCtrl = TextEditingController(text: current.narrative);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit My Week'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: hCtrl,
+                maxLength: 90,
+                decoration: const InputDecoration(
+                  labelText: 'Headline',
+                  helperText: 'The big line on the share card',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nCtrl,
+                maxLines: 8,
+                minLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Patterns',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Save')),
+        ],
+      ),
+    );
+    if (saved == true) {
+      setState(() {
+        _headline = hCtrl.text.trim();
+        _narrative = nCtrl.text.trim();
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final recap = _effective;
+    final streak = widget.streak;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -65,12 +130,22 @@ class _RecapView extends StatelessWidget {
           // Preview of the shareable card.
           Center(child: ShareCard(recap: recap, streak: streak)),
           const SizedBox(height: 12),
-          Center(
-            child: FilledButton.icon(
-              icon: const Icon(Icons.ios_share),
-              label: const Text('Share my week'),
-              onPressed: () => shareRecapCard(recap, streak),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.ios_share),
+                  label: const Text('Share my week'),
+                  onPressed: () => shareRecapCard(recap, streak),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Edit'),
+                onPressed: _edit,
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           Text('This week\'s patterns', style: theme.textTheme.titleMedium),

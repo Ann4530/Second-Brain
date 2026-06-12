@@ -7,6 +7,7 @@ import '../../features/insights/insights_screen.dart';
 import '../../features/journal/today_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/paywall/paywall_screen.dart';
+import '../../features/profile/profile_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../shared/widgets/home_shell.dart';
 
@@ -19,6 +20,7 @@ class Routes {
   static const insights = '/insights';
   static const settings = '/settings';
   static const paywall = '/paywall';
+  static const profile = '/profile';
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -32,6 +34,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.paywall,
         builder: (_, __) => const PaywallScreen(),
+      ),
+      GoRoute(
+        path: Routes.profile,
+        builder: (_, __) => const ProfileScreen(),
       ),
       // Bottom-nav shell for the main tabs.
       StatefulShellRoute.indexedStack(

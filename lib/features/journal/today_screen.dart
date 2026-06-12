@@ -5,6 +5,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import '../../data/models/entry.dart';
 import '../../data/models/reflection.dart';
 import '../../data/services/on_device_ai_service.dart';
+import '../../shared/providers/settings_providers.dart';
 import '../history/streak.dart';
 import 'journal_controller.dart';
 
@@ -60,7 +61,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   Future<void> _submit() async {
     await _speech.stop();
     setState(() => _listening = false);
-    await ref.read(journalControllerProvider.notifier).submit(_controller.text);
+    await ref.read(journalControllerProvider.notifier).submit(
+          _controller.text,
+          language: ref.read(reflectionLanguageProvider),
+        );
     // Once submitted, drop "compose" mode so the new reflection is shown.
     if (mounted) setState(() => _composing = false);
   }

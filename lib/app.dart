@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'shared/providers/entitlement_provider.dart';
+import 'shared/providers/settings_providers.dart';
 
 class SecondBrainApp extends ConsumerStatefulWidget {
   const SecondBrainApp({super.key});
@@ -23,12 +24,20 @@ class _SecondBrainAppState extends ConsumerState<SecondBrainApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
+    final themeChoice = ref.watch(themeChoiceProvider);
+    final cosmic = themeChoice == AppThemeChoice.cosmic;
 
     return MaterialApp.router(
       title: 'Second Brain',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: cosmic ? AppTheme.cosmic : AppTheme.light,
+      darkTheme: cosmic ? AppTheme.cosmic : AppTheme.dark,
+      themeMode: switch (themeChoice) {
+        AppThemeChoice.light => ThemeMode.light,
+        AppThemeChoice.dark => ThemeMode.dark,
+        AppThemeChoice.cosmic => ThemeMode.dark, // cosmic is always dark
+        AppThemeChoice.system => ThemeMode.system,
+      },
       routerConfig: router,
     );
   }

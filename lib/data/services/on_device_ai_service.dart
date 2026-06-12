@@ -120,8 +120,11 @@ class OnDeviceAiService implements AiService {
   Future<({String headline, String narrative})> weeklyNarrative({
     required Map<String, dynamic> stats,
     required List<String> snippets,
+    String? language,
   }) async {
-    final raw = await _generate(AiPrompts.weeklyInstruction(stats, snippets));
+    final raw = await _generate(
+      AiPrompts.weeklyInstruction(stats, snippets, language: language),
+    );
     final json = extractJson(raw);
     final narrative = (json['narrative'] ?? '').toString();
     if (narrative.isEmpty) throw const OnDeviceBadOutput();

@@ -11,6 +11,7 @@ abstract interface class AiService {
   Future<({String headline, String narrative})> weeklyNarrative({
     required Map<String, dynamic> stats,
     required List<String> snippets,
+    String? language,
   });
 }
 
@@ -49,7 +50,10 @@ Return ONLY a JSON object with this exact shape:
 ''';
 
   static String weeklyInstruction(
-          Map<String, dynamic> stats, List<String> snippets) =>
+    Map<String, dynamic> stats,
+    List<String> snippets, {
+    String? language,
+  }) =>
       '''
 $persona
 
@@ -61,6 +65,8 @@ ${snippets.map((s) => '- $s').join('\n')}
 
 Write "patterns about you": surface 2-3 genuine, specific patterns (e.g. tie mood
 to activities/weekdays). Then ONE forward-looking nudge.
+
+${language != null ? 'Write the headline and narrative in: $language.' : 'Write the headline and narrative in the SAME language as the snippets above.'}
 
 Return ONLY JSON:
 { "headline": "one punchy line (<=90 chars) for a shareable card",
