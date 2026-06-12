@@ -147,38 +147,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final todays = ref.watch(todaysEntryProvider);
     final streak = ref.watch(streakProvider).valueOrNull ?? 0;
 
-    final shown = journalState.valueOrNull ?? todays.valueOrNull;
-    final inEntry = _composing && shown == null && !journalState.isLoading;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Today'),
         actions: [
           if (streak > 0)
             Padding(
-              padding: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.only(right: 12),
               child: Chip(label: Text('🔥 $streak')),
-            ),
-          if (inEntry)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: SegmentedButton<_EntryMode>(
-                segments: const [
-                  ButtonSegment(
-                      value: _EntryMode.chat,
-                      icon: Icon(Icons.chat_bubble_outline, size: 16),
-                      label: Text('Trò chuyện')),
-                  ButtonSegment(
-                      value: _EntryMode.note,
-                      icon: Icon(Icons.edit_note, size: 16),
-                      label: Text('Ghi chú')),
-                ],
-                selected: {_mode},
-                onSelectionChanged: (s) => _switchMode(s.first),
-                style: const ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
             ),
         ],
       ),
@@ -194,21 +170,28 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             if (shownEntry != null && !_composing) {
               return _ReflectionView(entry: shownEntry, onNew: _startNew);
             }
-            if (_mode == _EntryMode.chat) {
-              return _ChatView(
-                scrollCtrl: _scrollCtrl,
-                textCtrl: _textCtrl,
-                listening: _listening,
-                onMic: _toggleMic,
-                onSend: _sendMessage,
-                onEnd: _endConversation,
-              );
-            }
-            return _NoteComposer(
-              controller: _textCtrl,
-              listening: _listening,
-              onMic: _toggleMic,
-              onSubmit: _submitNote,
+            // Composer with a mode switcher pinned at the top.
+            return Column(
+              children: [
+                _ModeSwitcher(mode: _mode, onChanged: _switchMode),
+                Expanded(
+                  child: _mode == _EntryMode.chat
+                      ? _ChatView(
+                          scrollCtrl: _scrollCtrl,
+                          textCtrl: _textCtrl,
+                          listening: _listening,
+                          onMic: _toggleMic,
+                          onSend: _sendMessage,
+                          onEnd: _endConversation,
+                        )
+                      : _NoteComposer(
+                          controller: _textCtrl,
+                          listening: _listening,
+                          onMic: _toggleMic,
+                          onSubmit: _submitNote,
+                        ),
+                ),
+              ],
             );
           },
         ),
@@ -224,6 +207,38 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       return 'Máy này không đủ mạnh để chạy AI nội bộ. Tắt "Chỉ dùng on-device" trong Cài đặt.';
     }
     return 'Có lỗi xảy ra. Vui lòng thử lại.';
+  }
+}
+
+// ── Mode switcher (Chat ⇄ Note) ───────────────────────────────────────────────
+
+class _ModeSwitcher extends StatelessWidget {
+  const _ModeSwitcher({required this.mode, required this.onChanged});
+  final _EntryMode mode;
+  final ValueChanged<_EntryMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      child: SegmentedButton<_EntryMode>(
+        segments: const [
+          ButtonSegment(
+            value: _EntryMode.chat,
+            icon: Icon(Icons.chat_bubble_outline, size: 18),
+            label: Text('Trò chuyện'),
+          ),
+          ButtonSegment(
+            value: _EntryMode.note,
+            icon: Icon(Icons.edit_note, size: 18),
+            label: Text('Ghi chú'),
+          ),
+        ],
+        selected: {mode},
+        onSelectionChanged: (s) => onChanged(s.first),
+        showSelectedIcon: false,
+      ),
+    );
   }
 }
 
